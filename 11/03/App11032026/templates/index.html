@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { margin-bottom: 20px; }
+        input, button { margin: 5px; padding: 8px; }
+        ul { list-style-type: none; padding: 0; }
+        li { background: #f4f4f4; margin: 5px 0; padding: 10px; border-radius: 5px; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Gestor de Tareas</h1>
+    <form id="taskForm">
+        <input type="text" id="title" placeholder="Título" required>
+        <input type="text" id="description" placeholder="Descripción">
+        <label><input type="checkbox" id="done"> Hecha</label>
+        <button type="submit">Agregar Tarea</button>
+    </form>
+    <ul id="taskList"></ul>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+
+        function loadTasks() {
+            fetch(`${API_BASE}/tasks`)
+                .then(res => res.json())
+                .then(tasks => {
+                    const list = document.getElementById('taskList');
+                    list.innerHTML = '';
+                    tasks.forEach(task => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${task.title} - ${task.description} - ${task.done ? 'Hecha' : 'Pendiente'}</span>
+                            <button onclick="deleteTask(${task.id})">Eliminar</button>
+                            <button onclick="editTask(${task.id})">Editar</button>
+                        `;
+                        list.appendChild(li);
+                    });
+                });
+        }
+
+        function addTask(event) {
+            event.preventDefault();
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const done = document.getElementById('done').checked;
+            fetch(`${API_BASE}/tasks`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, description, done})
+            }).then(() => {
+                loadTasks();
+                document.getElementById('taskForm').reset();
+            });
+        }
+
+        function deleteTask(id) {
+            fetch(`${API_BASE}/tasks/${id}`, {method: 'DELETE'})
+                .then(() => loadTasks());
+        }
+
+        function editTask(id) {
+            const newTitle = prompt('Nuevo título');
+            const newDesc = prompt('Nueva descripción');
+            const newDone = confirm('¿Hecha?');
+            fetch(`${API_BASE}/tasks/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: newTitle, description: newDesc, done: newDone})
+            }).then(() => loadTasks());
+        }
+
+        document.getElementById('taskForm').addEventListener('submit', addTask);
+        loadTasks();
+    </script>
+</body>
+</html>
