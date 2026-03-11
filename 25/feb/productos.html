@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Productos</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1, h2 { color: #333; }
+
+        .recuadro {
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 400px;
+            margin-bottom: 30px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+        }
+        .btn-agregar { background-color: #4CAF50; width: 100%; margin-top: 5px; }
+        .btn-agregar:hover { background-color: #45a049; }
+        .btn-editar { background-color: #2196F3; }
+        .btn-editar:hover { background-color: #1976D2; }
+        .btn-eliminar { background-color: #f44336; }
+        .btn-eliminar:hover { background-color: #d32f2f; }
+        .btn-guardar { background-color: #FF9800; }
+        .btn-guardar:hover { background-color: #F57C00; }
+        .btn-cancelar { background-color: #9E9E9E; }
+
+        #mensaje { margin-top: 10px; font-weight: bold; }
+
+        #productos { list-style-type: none; padding: 0; }
+        .producto {
+            background-color: #f9f9f9;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .producto-info h3 { margin: 0 0 5px 0; }
+        .producto-info p { margin: 3px 0; }
+        .producto-botones { display: flex; gap: 8px; }
+
+        .form-editar {
+            background-color: #fff3e0;
+            border: 1px solid #FF9800;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 5px 0;
+        }
+        .form-editar input { margin: 4px 0; }
+        .form-editar-botones { display: flex; gap: 8px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <!-- Recuadro agregar -->
+    <div class="recuadro">
+        <h2>Agregar Producto</h2>
+        <input type="text" id="nombre" placeholder="Nombre del producto">
+        <input type="number" id="precio" placeholder="Precio">
+        <input type="text" id="descripcion" placeholder="Descripción">
+        <button class="btn-agregar" onclick="agregarProducto()">➕ Agregar Producto</button>
+        <p id="mensaje"></p>
+    </div>
+
+    <!-- Listado -->
+    <h1>Listado de Productos</h1>
+    <ul id="productos"></ul>
+
+    <script>
+        async function cargarProductos() {
+            try {
+                const response = await fetch('http://localhost:5000/api/productos');
+                if (!response.ok) throw new Error('Error al cargar productos');
+                const productos = await response.json();
+                const lista = document.getElementById('productos');
+                lista.innerHTML = '';
+                productos.forEach(producto => {
+                    const li = document.createElement('li');
+                    li.className = 'producto';
+                    li.id = `producto-${producto.id}`;
+                    li.innerHTML = `
+                        <div class="producto-info">
+                            <h3>${producto.nombre}</h3>
+                            <p>Precio: $${producto.precio}</p>
+                            <p>Descripción: ${producto.descripcion || 'Sin descripción'}</p>
+                        </div>
+                        <div class="producto-botones">
+                            <button class="btn-editar" onclick="mostrarFormEditar(${producto.id}, '${producto.nombre}', ${producto.precio}, '${producto.descripcion || ''}')">✏️ Editar</button>
+                            <button class="btn-eliminar" onclick="eliminarProducto(${producto.id})">🗑️ Eliminar</button>
+                        </div>
+                    `;
+                    lista.appendChild(li);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('productos').innerHTML = '<li>Error al cargar productos</li>';
+            }
+        }
+
+        async function agregarProducto() {
+            const nombre = document.getElementById('nombre').value;
+            const precio = document.getElementById('precio').value;
+            const descripcion = document.getElementById('descripcion').value;
+
+            if (!nombre || !precio) {
+                document.getElementById('mensaje').textContent = '⚠️ Nombre y precio son obligatorios';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/productos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, precio: Number(precio), descripcion })
+                });
+
+                if (response.ok) {
+                    document.getElementById('mensaje').textContent = '✅ Producto agregado con éxito';
+                    document.getElementById('nombre').value = '';
+                    document.getElementById('precio').value = '';
+                    document.getElementById('descripcion').value = '';
+                    cargarProductos();
+                }
+            } catch (error) {
+                document.getElementById('mensaje').textContent = '❌ Error al conectar con el servidor';
+            }
+        }
+
+        function mostrarFormEditar(id, nombre, precio, descripcion) {
+            const li = document.getElementById(`producto-${id}`);
+            li.innerHTML = `
+                <div class="form-editar" style="width:100%">
+                    <strong>Editando producto #${id}</strong>
+                    <input type="text" id="edit-nombre-${id}" value="${nombre}" placeholder="Nombre">
+                    <input type="number" id="edit-precio-${id}" value="${precio}" placeholder="Precio">
+                    <input type="text" id="edit-descripcion-${id}" value="${descripcion}" placeholder="Descripción">
+                    <div class="form-editar-botones">
+                        <button class="btn-guardar" onclick="guardarEdicion(${id})">💾 Guardar</button>
+                        <button class="btn-cancelar" onclick="cargarProductos()">✖ Cancelar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function guardarEdicion(id) {
+            const nombre = document.getElementById(`edit-nombre-${id}`).value;
+            const precio = document.getElementById(`edit-precio-${id}`).value;
+            const descripcion = document.getElementById(`edit-descripcion-${id}`).value;
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/productos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, precio: Number(precio), descripcion })
+                });
+
+                if (response.ok) cargarProductos();
+            } catch (error) {
+                alert('❌ Error al actualizar');
+            }
+        }
+
+        async function eliminarProducto(id) {
+            if (!confirm('¿Seguro que quieres eliminar este producto?')) return;
+
+            try {
+                const response = await fetch(`http://localhost:5000/api/productos/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) cargarProductos();
+            } catch (error) {
+                alert('❌ Error al eliminar');
+            }
+        }
+
+        window.onload = cargarProductos;
+    </script>
+</body>
+</html>
